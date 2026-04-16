@@ -1,45 +1,105 @@
 _base_ = [
-    '../_base_/models/atss_r50_fpn.py',
     '../_base_/datasets/PerioXrays.py',
-    '../_base_/schedules/schedule_1x.py',
-    '../_base_/default_runtime.py',
+    '../_base_/schedules/schedule_1x.py', '../_base_/default_runtime.py'
 ]
 
-# ===== 模型设置：尽量对齐 Faster R-CNN 的 PerioXrays 配置 =====
+# model settings
 model = dict(
+    type='ATSS',
+    data_preprocessor=dict(
+        type='DetDataPreprocessor',
+        mean=[123.675, 116.28, 103.53],
+        std=[58.395, 57.12, 57.375],
+        bgr_to_rgb=True,
+        pad_size_divisor=32),
     backbone=dict(
-        init_cfg=dict(
-            type='Pretrained',
-            checkpoint='./pretrained_checkpoints/resnet50-0676ba61.pth')),
-    bbox_head=dict(num_classes=1),
-)
+        type='ResNet',
+        depth=50,
+        num_stages=4,
+        out_indices=(0, 1, 2, 3),
+        frozen_stages=1,
+        norm_cfg=dict(type='BN', requires_grad=True),
+        norm_eval=True,
+        style='pytorch',
+        init_cfg=dict(type='Pretrained', checkpoint='./pretrained_checkpoints/resnet50-0676ba61.pth')),
+    neck=dict(
+        type='FPN',
+        in_channels=[256, 512, 1024, 2048],
+        out_channels=256,
+        start_level=1,
+        add_extra_convs='on_output',
+        num_outs=5),
+    bbox_head=dict(
+        type='ATSSHead',
+        num_classes=1,
+        in_channels=256,
+        stacked_convs=4,
+        feat_channels=256,
+        anchor_generator=dict(
+            type='AnchorGenerator',
+            ratios=[1.0],
+            octave_base_scale=8,
+            scales_per_octave=1,
+            strides=[8, 16, 32, 64, 128]),
+        bbox_coder=dict(
+            type='DeltaXYWHBBoxCoder',
+            target_means=[.0, .0, .0, .0],
+            target_stds=[0.1, 0.1, 0.2, 0.2]),
+        loss_cls=dict(
+            type='FocalLoss',
+            use_sigmoid=True,
+            gamma=2.0,
+            alpha=0.25,
+            loss_weight=1.0),
+        loss_bbox=dict(type='GIoULoss', loss_weight=2.0),
+        loss_centerness=dict(
+            type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0)),
+    # training and testing settings
+    train_cfg=dict(
+        assigner=dict(type='ATSSAssigner', topk=9),
+        allowed_border=-1,
+        pos_weight=-1,
+        debug=False),
+    test_cfg=dict(
+        nms_pre=1000,
+        min_bbox_size=0,
+        score_thr=0.05,
+        nms=dict(type='nms', iou_threshold=0.6),
+        max_per_img=100))
 
-# ===== 训练/验证/测试 loop：对齐 max_epochs 与 val_interval =====
-train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=15, val_interval=1)
-val_cfg = dict(type='ValLoop')
-test_cfg = dict(type='TestLoop')
+train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=24, val_interval=1)  # 改为 24 epochs
 
-# ===== 优化器：与 Faster R-CNN PerioXrays 保持一致 =====
-optim_wrapper = dict(
-    optimizer=dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=1e-4))
-
-# ===== 学习率策略：保留 Linear warmup，替换为 StepLR（与 Faster R-CNN 配置一致）=====
+# ===== 学习率 - 改为更平缓的衰减 =====
 param_scheduler = [
-    dict(type='LinearLR', start_factor=0.001, by_epoch=False, begin=0, end=500),
-    dict(type='StepLR', begin=0, end=15, by_epoch=True, step_size=3, gamma=0.33),
+    dict(
+        type='LinearLR',
+        start_factor=0.001,
+        by_epoch=False,
+        begin=0,
+        end=500),
+    dict(
+        type='MultiStepLR',
+        begin=0,
+        end=24,
+        by_epoch=True,
+        milestones=[8, 16, 22],  # ← 改为更多阶段，衰减更平缓
+        gamma=0.1)
 ]
+optim_wrapper = dict(
+    optimizer=dict(lr=0.01, momentum=0.9, type='SGD', weight_decay=0.0001),
+    type='OptimWrapper')
 
-# ===== 运行时配置（现代版）：对齐日志/保存策略 =====
+
+# ===== 运行时配置（现代版）=====
 default_hooks = dict(
     timer=dict(type='IterTimerHook'),
-    logger=dict(type='LoggerHook', interval=50),
+    logger=dict(type='LoggerHook', interval=50),          # 每 50 步输出日志
     param_scheduler=dict(type='ParamSchedulerHook'),
     checkpoint=dict(
         type='CheckpointHook',
-        interval=1,
-        max_keep_ckpts=3,
-        save_best='auto'),
-)
+        interval=1,                                        # 每 1 个 epoch 保存
+        max_keep_ckpts=3,                                  # 最多保留 3 个检查点
+        save_best='auto'))                                 # 自动保存最佳模型
 
 # ===== 日志配置 =====
 log_level = 'INFO'
@@ -48,14 +108,11 @@ log_level = 'INFO'
 env_cfg = dict(
     cudnn_benchmark=True,
     mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0),
-    dist_cfg=dict(backend='nccl'),
-)
+    dist_cfg=dict(backend='nccl'))
 
 # ===== 可视化 =====
 vis_backends = [dict(type='LocalVisBackend')]
 visualizer = dict(
     type='DetLocalVisualizer',
     vis_backends=vis_backends,
-    name='visualizer',
-)
-
+    name='visualizer')
