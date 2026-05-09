@@ -71,14 +71,16 @@ class ToothPriorEncoder(nn.Module):
 
 
 class MaskGuidedFeatureModulation(nn.Module):
-    """feat_out = feat * (1 + sigmoid(Wg(p))) + Wb(p)."""
+    """feat_out = feat * (1 + s*sigmoid(Wg(p))) + s*Wb(p), ``s`` = modulation_strength."""
 
     def __init__(self,
                  feat_channels: int,
                  prior_channels: int,
                  num_levels: int,
-                 gate_log_interval: int = 200) -> None:
+                 gate_log_interval: int = 200,
+                 modulation_strength: float = 1.0) -> None:
         super().__init__()
+        self.modulation_strength = float(modulation_strength)
         self.gate_log_interval = gate_log_interval
         self._step = 0
         self.gate_convs = nn.ModuleList([
@@ -90,9 +92,12 @@ class MaskGuidedFeatureModulation(nn.Module):
 
     def forward(self, mlvl_feats: Tuple[torch.Tensor, ...],
                 priors: Tuple[torch.Tensor, ...]) -> Tuple[torch.Tensor, ...]:
+        if self.modulation_strength == 0.0:
+            return mlvl_feats
         if len(mlvl_feats) != len(priors):
             raise RuntimeError(
                 f'mlvl_feats ({len(mlvl_feats)}) vs priors ({len(priors)})')
+        s = self.modulation_strength
         out = []
         logger = MMLogger.get_current_instance()
         for i, (feat, pr) in enumerate(zip(mlvl_feats, priors)):
@@ -111,6 +116,6 @@ class MaskGuidedFeatureModulation(nn.Module):
                         'gate mean=%.6f min=%.6f max=%.6f', i,
                         tuple(feat.shape), tuple(pr.shape),
                         float(gate.mean()), float(gate.min()), float(gate.max()))
-            out.append(feat * (1.0 + gate) + bias)
+            out.append(feat * (1.0 + s * gate) + s * bias)
         self._step += 1
         return tuple(out)

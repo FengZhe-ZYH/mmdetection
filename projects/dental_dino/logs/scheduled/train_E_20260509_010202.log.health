@@ -1,0 +1,141 @@
+==== health @30min 2026-05-09T01:32:02+08:00 experiment=E pid=2868649 ====
+status: train process still alive
+--- last 120 lines of training log ---
+05/09 01:31:09 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:09 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:10 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:10 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:11 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:11 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:12 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:12 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:13 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:13 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:14 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:14 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:15 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:15 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:16 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:16 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:17 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:17 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:17 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:18 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:18 - mmengine - INFO - Epoch(train)  [3][ 300/1500]  base_lr: 1.0000e-04 lr: 1.0000e-04  eta: 1:58:04  time: 0.4812  data_time: 0.0081  memory: 8677  grad_norm: 136.3903  loss: 12.1475  loss_cls: 0.2753  loss_bbox: 0.1239  loss_iou: 0.5955  d0.loss_cls: 0.3097  d0.loss_bbox: 0.1326  d0.loss_iou: 0.6397  d1.loss_cls: 0.2911  d1.loss_bbox: 0.1242  d1.loss_iou: 0.6044  d2.loss_cls: 0.2724  d2.loss_bbox: 0.1228  d2.loss_iou: 0.5992  d3.loss_cls: 0.2743  d3.loss_bbox: 0.1257  d3.loss_iou: 0.6031  d4.loss_cls: 0.2738  d4.loss_bbox: 0.1244  d4.loss_iou: 0.5974  enc_loss_cls: 0.3388  enc_loss_bbox: 0.1686  enc_loss_iou: 0.8155  dn_loss_cls: 0.0207  dn_loss_bbox: 0.1104  dn_loss_iou: 0.6047  d0.dn_loss_cls: 0.0457  d0.dn_loss_bbox: 0.1456  d0.dn_loss_iou: 0.7973  d1.dn_loss_cls: 0.0253  d1.dn_loss_bbox: 0.1166  d1.dn_loss_iou: 0.6466  d2.dn_loss_cls: 0.0209  d2.dn_loss_bbox: 0.1114  d2.dn_loss_iou: 0.6168  d3.dn_loss_cls: 0.0194  d3.dn_loss_bbox: 0.1105  d3.dn_loss_iou: 0.6082  d4.dn_loss_cls: 0.0195  d4.dn_loss_bbox: 0.1103  d4.dn_loss_iou: 0.6051
+05/09 01:31:19 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:19 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:19 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:20 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:20 - mmengine - INFO - [MaskGuidedFeatureModulation] lvl=0 feat=(2, 256, 64, 114) prior=(2, 64, 64, 114) gate mean=0.504410 min=0.000000 max=1.000000
+05/09 01:31:20 - mmengine - INFO - [MaskGuidedFeatureModulation] lvl=1 feat=(2, 256, 32, 57) prior=(2, 64, 32, 57) gate mean=0.501687 min=0.000005 max=0.999996
+05/09 01:31:20 - mmengine - INFO - [MaskGuidedFeatureModulation] lvl=2 feat=(2, 256, 16, 29) prior=(2, 64, 16, 29) gate mean=0.498148 min=0.000003 max=0.999993
+05/09 01:31:20 - mmengine - INFO - [MaskGuidedFeatureModulation] lvl=3 feat=(2, 256, 8, 15) prior=(2, 64, 8, 15) gate mean=0.497434 min=0.000811 max=0.996091
+05/09 01:31:20 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:21 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:21 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:22 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:22 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:23 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:23 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:24 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:24 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:24 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:25 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:25 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:26 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:26 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:27 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:27 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:28 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:28 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:29 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:29 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:30 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:30 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:31 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:31 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:32 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:32 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:33 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:33 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:33 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:34 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:34 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:35 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:35 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:36 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:36 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:37 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:37 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:38 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:38 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:39 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:39 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:40 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:40 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:41 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:41 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:42 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:42 - mmengine - INFO - Epoch(train)  [3][ 350/1500]  base_lr: 1.0000e-04 lr: 1.0000e-04  eta: 1:57:38  time: 0.4714  data_time: 0.0081  memory: 8866  grad_norm: 137.0908  loss: 12.2479  loss_cls: 0.2441  loss_bbox: 0.1274  loss_iou: 0.6329  d0.loss_cls: 0.2605  d0.loss_bbox: 0.1352  d0.loss_iou: 0.6683  d1.loss_cls: 0.2551  d1.loss_bbox: 0.1314  d1.loss_iou: 0.6472  d2.loss_cls: 0.2582  d2.loss_bbox: 0.1271  d2.loss_iou: 0.6268  d3.loss_cls: 0.2504  d3.loss_bbox: 0.1249  d3.loss_iou: 0.6225  d4.loss_cls: 0.2414  d4.loss_bbox: 0.1271  d4.loss_iou: 0.6304  enc_loss_cls: 0.3150  enc_loss_bbox: 0.1633  enc_loss_iou: 0.7616  dn_loss_cls: 0.0190  dn_loss_bbox: 0.1182  dn_loss_iou: 0.6369  d0.dn_loss_cls: 0.0486  d0.dn_loss_bbox: 0.1464  d0.dn_loss_iou: 0.7913  d1.dn_loss_cls: 0.0229  d1.dn_loss_bbox: 0.1233  d1.dn_loss_iou: 0.6718  d2.dn_loss_cls: 0.0186  d2.dn_loss_bbox: 0.1186  d2.dn_loss_iou: 0.6413  d3.dn_loss_cls: 0.0180  d3.dn_loss_bbox: 0.1176  d3.dn_loss_iou: 0.6334  d4.dn_loss_cls: 0.0180  d4.dn_loss_bbox: 0.1179  d4.dn_loss_iou: 0.6355
+05/09 01:31:42 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:43 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:43 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:44 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:44 - mmengine - INFO - [MaskGuidedFeatureModulation] lvl=0 feat=(2, 256, 84, 149) prior=(2, 64, 84, 149) gate mean=0.504858 min=0.000000 max=1.000000
+05/09 01:31:44 - mmengine - INFO - [MaskGuidedFeatureModulation] lvl=1 feat=(2, 256, 42, 75) prior=(2, 64, 42, 75) gate mean=0.501809 min=0.001053 max=0.999700
+05/09 01:31:44 - mmengine - INFO - [MaskGuidedFeatureModulation] lvl=2 feat=(2, 256, 21, 38) prior=(2, 64, 21, 38) gate mean=0.497535 min=0.000636 max=0.999571
+05/09 01:31:44 - mmengine - INFO - [MaskGuidedFeatureModulation] lvl=3 feat=(2, 256, 11, 19) prior=(2, 64, 11, 19) gate mean=0.496941 min=0.002358 max=0.997799
+05/09 01:31:44 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:45 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:45 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:46 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:46 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:47 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:47 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:47 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:48 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:49 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:49 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:50 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:50 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:51 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:51 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:52 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:52 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:53 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:53 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:54 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:54 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:55 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:55 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:56 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:56 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:56 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:57 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:58 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:58 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:58 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:59 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:31:59 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:32:00 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:32:00 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:32:01 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+05/09 01:32:01 - mmengine - INFO - [tooth_guided_queries] num_tooth_slots=32 k_enc=868
+--- grep suspicious (last 20 hits) ---
+(no matches)
+--- grep training heartbeat (last 15) ---
+05/09 01:28:14 - mmengine - INFO - Epoch(val)  [2][350/673]    eta: 0:00:27  time: 0.0853  data_time: 0.0027  memory: 880  
+05/09 01:28:18 - mmengine - INFO - Epoch(val)  [2][400/673]    eta: 0:00:23  time: 0.0830  data_time: 0.0026  memory: 880  
+05/09 01:28:22 - mmengine - INFO - Epoch(val)  [2][450/673]    eta: 0:00:18  time: 0.0843  data_time: 0.0027  memory: 880  
+05/09 01:28:27 - mmengine - INFO - Epoch(val)  [2][500/673]    eta: 0:00:14  time: 0.0853  data_time: 0.0027  memory: 880  
+05/09 01:28:31 - mmengine - INFO - Epoch(val)  [2][550/673]    eta: 0:00:10  time: 0.0856  data_time: 0.0028  memory: 880  
+05/09 01:28:35 - mmengine - INFO - Epoch(val)  [2][600/673]    eta: 0:00:06  time: 0.0854  data_time: 0.0027  memory: 880  
+05/09 01:28:39 - mmengine - INFO - Epoch(val)  [2][650/673]    eta: 0:00:01  time: 0.0845  data_time: 0.0027  memory: 880  
+05/09 01:28:57 - mmengine - INFO - Epoch(val) [2][673/673]    coco/bbox_mAP: 0.3090  coco/bbox_mAP_50: 0.6020  coco/bbox_mAP_75: 0.2940  coco/bbox_mAP_s: 0.1360  coco/bbox_mAP_m: 0.3120  coco/bbox_mAP_l: 0.3270  data_time: 0.0028  time: 0.0850
+05/09 01:29:20 - mmengine - INFO - Epoch(train)  [3][  50/1500]  base_lr: 1.0000e-04 lr: 1.0000e-04  eta: 2:00:15  time: 0.4634  data_time: 0.0097  memory: 8521  grad_norm: 160.7970  loss: 11.9620  loss_cls: 0.2757  loss_bbox: 0.1203  loss_iou: 0.5910  d0.loss_cls: 0.2880  d0.loss_bbox: 0.1294  d0.loss_iou: 0.6174  d1.loss_cls: 0.2679  d1.loss_bbox: 0.1262  d1.loss_iou: 0.6035  d2.loss_cls: 0.2679  d2.loss_bbox: 0.1216  d2.loss_iou: 0.5929  d3.loss_cls: 0.2731  d3.loss_bbox: 0.1207  d3.loss_iou: 0.5943  d4.loss_cls: 0.2693  d4.loss_bbox: 0.1202  d4.loss_iou: 0.5920  enc_loss_cls: 0.3072  enc_loss_bbox: 0.1631  enc_loss_iou: 0.7361  dn_loss_cls: 0.0146  dn_loss_bbox: 0.1246  dn_loss_iou: 0.6115  d0.dn_loss_cls: 0.0416  d0.dn_loss_bbox: 0.1531  d0.dn_loss_iou: 0.7939  d1.dn_loss_cls: 0.0172  d1.dn_loss_bbox: 0.1288  d1.dn_loss_iou: 0.6438  d2.dn_loss_cls: 0.0127  d2.dn_loss_bbox: 0.1249  d2.dn_loss_iou: 0.6168  d3.dn_loss_cls: 0.0120  d3.dn_loss_bbox: 0.1248  d3.dn_loss_iou: 0.6141  d4.dn_loss_cls: 0.0124  d4.dn_loss_bbox: 0.1247  d4.dn_loss_iou: 0.6127
+05/09 01:29:43 - mmengine - INFO - Epoch(train)  [3][ 100/1500]  base_lr: 1.0000e-04 lr: 1.0000e-04  eta: 1:59:47  time: 0.4652  data_time: 0.0079  memory: 11064  grad_norm: 149.4820  loss: 12.1203  loss_cls: 0.2916  loss_bbox: 0.1181  loss_iou: 0.5794  d0.loss_cls: 0.3233  d0.loss_bbox: 0.1249  d0.loss_iou: 0.6200  d1.loss_cls: 0.2920  d1.loss_bbox: 0.1245  d1.loss_iou: 0.5932  d2.loss_cls: 0.2852  d2.loss_bbox: 0.1223  d2.loss_iou: 0.5899  d3.loss_cls: 0.2774  d3.loss_bbox: 0.1220  d3.loss_iou: 0.5913  d4.loss_cls: 0.2880  d4.loss_bbox: 0.1190  d4.loss_iou: 0.5824  enc_loss_cls: 0.3417  enc_loss_bbox: 0.1552  enc_loss_iou: 0.7464  dn_loss_cls: 0.0210  dn_loss_bbox: 0.1260  dn_loss_iou: 0.6073  d0.dn_loss_cls: 0.0455  d0.dn_loss_bbox: 0.1580  d0.dn_loss_iou: 0.7936  d1.dn_loss_cls: 0.0233  d1.dn_loss_bbox: 0.1322  d1.dn_loss_iou: 0.6540  d2.dn_loss_cls: 0.0197  d2.dn_loss_bbox: 0.1271  d2.dn_loss_iou: 0.6201  d3.dn_loss_cls: 0.0174  d3.dn_loss_bbox: 0.1253  d3.dn_loss_iou: 0.6104  d4.dn_loss_cls: 0.0177  d4.dn_loss_bbox: 0.1256  d4.dn_loss_iou: 0.6086
+05/09 01:30:07 - mmengine - INFO - Epoch(train)  [3][ 150/1500]  base_lr: 1.0000e-04 lr: 1.0000e-04  eta: 1:59:19  time: 0.4679  data_time: 0.0080  memory: 8575  grad_norm: 127.6298  loss: 12.2930  loss_cls: 0.3041  loss_bbox: 0.1071  loss_iou: 0.5939  d0.loss_cls: 0.3287  d0.loss_bbox: 0.1259  d0.loss_iou: 0.6373  d1.loss_cls: 0.2873  d1.loss_bbox: 0.1175  d1.loss_iou: 0.6282  d2.loss_cls: 0.2917  d2.loss_bbox: 0.1108  d2.loss_iou: 0.6047  d3.loss_cls: 0.3056  d3.loss_bbox: 0.1099  d3.loss_iou: 0.5989  d4.loss_cls: 0.3064  d4.loss_bbox: 0.1085  d4.loss_iou: 0.6011  enc_loss_cls: 0.3314  enc_loss_bbox: 0.1481  enc_loss_iou: 0.7413  dn_loss_cls: 0.0231  dn_loss_bbox: 0.1182  dn_loss_iou: 0.6247  d0.dn_loss_cls: 0.0531  d0.dn_loss_bbox: 0.1510  d0.dn_loss_iou: 0.8067  d1.dn_loss_cls: 0.0308  d1.dn_loss_bbox: 0.1244  d1.dn_loss_iou: 0.6625  d2.dn_loss_cls: 0.0251  d2.dn_loss_bbox: 0.1195  d2.dn_loss_iou: 0.6335  d3.dn_loss_cls: 0.0228  d3.dn_loss_bbox: 0.1179  d3.dn_loss_iou: 0.6249  d4.dn_loss_cls: 0.0229  d4.dn_loss_bbox: 0.1179  d4.dn_loss_iou: 0.6256
+05/09 01:30:30 - mmengine - INFO - Epoch(train)  [3][ 200/1500]  base_lr: 1.0000e-04 lr: 1.0000e-04  eta: 1:58:52  time: 0.4694  data_time: 0.0081  memory: 8866  grad_norm: 127.4497  loss: 11.7864  loss_cls: 0.2649  loss_bbox: 0.1066  loss_iou: 0.5721  d0.loss_cls: 0.2947  d0.loss_bbox: 0.1184  d0.loss_iou: 0.6194  d1.loss_cls: 0.2718  d1.loss_bbox: 0.1117  d1.loss_iou: 0.5973  d2.loss_cls: 0.2650  d2.loss_bbox: 0.1096  d2.loss_iou: 0.5848  d3.loss_cls: 0.2650  d3.loss_bbox: 0.1092  d3.loss_iou: 0.5833  d4.loss_cls: 0.2654  d4.loss_bbox: 0.1088  d4.loss_iou: 0.5805  enc_loss_cls: 0.3119  enc_loss_bbox: 0.1454  enc_loss_iou: 0.7618  dn_loss_cls: 0.0217  dn_loss_bbox: 0.1122  dn_loss_iou: 0.6062  d0.dn_loss_cls: 0.0440  d0.dn_loss_bbox: 0.1442  d0.dn_loss_iou: 0.7810  d1.dn_loss_cls: 0.0256  d1.dn_loss_bbox: 0.1185  d1.dn_loss_iou: 0.6443  d2.dn_loss_cls: 0.0213  d2.dn_loss_bbox: 0.1145  d2.dn_loss_iou: 0.6208  d3.dn_loss_cls: 0.0200  d3.dn_loss_bbox: 0.1129  d3.dn_loss_iou: 0.6114  d4.dn_loss_cls: 0.0203  d4.dn_loss_bbox: 0.1124  d4.dn_loss_iou: 0.6076
+05/09 01:30:54 - mmengine - INFO - Epoch(train)  [3][ 250/1500]  base_lr: 1.0000e-04 lr: 1.0000e-04  eta: 1:58:28  time: 0.4825  data_time: 0.0084  memory: 9875  grad_norm: 135.4544  loss: 11.6679  loss_cls: 0.2565  loss_bbox: 0.1157  loss_iou: 0.5946  d0.loss_cls: 0.2989  d0.loss_bbox: 0.1173  d0.loss_iou: 0.6168  d1.loss_cls: 0.2665  d1.loss_bbox: 0.1130  d1.loss_iou: 0.5959  d2.loss_cls: 0.2580  d2.loss_bbox: 0.1152  d2.loss_iou: 0.5994  d3.loss_cls: 0.2494  d3.loss_bbox: 0.1184  d3.loss_iou: 0.6114  d4.loss_cls: 0.2679  d4.loss_bbox: 0.1131  d4.loss_iou: 0.5874  enc_loss_cls: 0.3003  enc_loss_bbox: 0.1492  enc_loss_iou: 0.7605  dn_loss_cls: 0.0145  dn_loss_bbox: 0.1123  dn_loss_iou: 0.5868  d0.dn_loss_cls: 0.0363  d0.dn_loss_bbox: 0.1460  d0.dn_loss_iou: 0.7725  d1.dn_loss_cls: 0.0167  d1.dn_loss_bbox: 0.1184  d1.dn_loss_iou: 0.6213  d2.dn_loss_cls: 0.0135  d2.dn_loss_bbox: 0.1138  d2.dn_loss_iou: 0.5937  d3.dn_loss_cls: 0.0130  d3.dn_loss_bbox: 0.1117  d3.dn_loss_iou: 0.5836  d4.dn_loss_cls: 0.0133  d4.dn_loss_bbox: 0.1117  d4.dn_loss_iou: 0.5832
+05/09 01:31:18 - mmengine - INFO - Epoch(train)  [3][ 300/1500]  base_lr: 1.0000e-04 lr: 1.0000e-04  eta: 1:58:04  time: 0.4812  data_time: 0.0081  memory: 8677  grad_norm: 136.3903  loss: 12.1475  loss_cls: 0.2753  loss_bbox: 0.1239  loss_iou: 0.5955  d0.loss_cls: 0.3097  d0.loss_bbox: 0.1326  d0.loss_iou: 0.6397  d1.loss_cls: 0.2911  d1.loss_bbox: 0.1242  d1.loss_iou: 0.6044  d2.loss_cls: 0.2724  d2.loss_bbox: 0.1228  d2.loss_iou: 0.5992  d3.loss_cls: 0.2743  d3.loss_bbox: 0.1257  d3.loss_iou: 0.6031  d4.loss_cls: 0.2738  d4.loss_bbox: 0.1244  d4.loss_iou: 0.5974  enc_loss_cls: 0.3388  enc_loss_bbox: 0.1686  enc_loss_iou: 0.8155  dn_loss_cls: 0.0207  dn_loss_bbox: 0.1104  dn_loss_iou: 0.6047  d0.dn_loss_cls: 0.0457  d0.dn_loss_bbox: 0.1456  d0.dn_loss_iou: 0.7973  d1.dn_loss_cls: 0.0253  d1.dn_loss_bbox: 0.1166  d1.dn_loss_iou: 0.6466  d2.dn_loss_cls: 0.0209  d2.dn_loss_bbox: 0.1114  d2.dn_loss_iou: 0.6168  d3.dn_loss_cls: 0.0194  d3.dn_loss_bbox: 0.1105  d3.dn_loss_iou: 0.6082  d4.dn_loss_cls: 0.0195  d4.dn_loss_bbox: 0.1103  d4.dn_loss_iou: 0.6051
+05/09 01:31:42 - mmengine - INFO - Epoch(train)  [3][ 350/1500]  base_lr: 1.0000e-04 lr: 1.0000e-04  eta: 1:57:38  time: 0.4714  data_time: 0.0081  memory: 8866  grad_norm: 137.0908  loss: 12.2479  loss_cls: 0.2441  loss_bbox: 0.1274  loss_iou: 0.6329  d0.loss_cls: 0.2605  d0.loss_bbox: 0.1352  d0.loss_iou: 0.6683  d1.loss_cls: 0.2551  d1.loss_bbox: 0.1314  d1.loss_iou: 0.6472  d2.loss_cls: 0.2582  d2.loss_bbox: 0.1271  d2.loss_iou: 0.6268  d3.loss_cls: 0.2504  d3.loss_bbox: 0.1249  d3.loss_iou: 0.6225  d4.loss_cls: 0.2414  d4.loss_bbox: 0.1271  d4.loss_iou: 0.6304  enc_loss_cls: 0.3150  enc_loss_bbox: 0.1633  enc_loss_iou: 0.7616  dn_loss_cls: 0.0190  dn_loss_bbox: 0.1182  dn_loss_iou: 0.6369  d0.dn_loss_cls: 0.0486  d0.dn_loss_bbox: 0.1464  d0.dn_loss_iou: 0.7913  d1.dn_loss_cls: 0.0229  d1.dn_loss_bbox: 0.1233  d1.dn_loss_iou: 0.6718  d2.dn_loss_cls: 0.0186  d2.dn_loss_bbox: 0.1186  d2.dn_loss_iou: 0.6413  d3.dn_loss_cls: 0.0180  d3.dn_loss_bbox: 0.1176  d3.dn_loss_iou: 0.6334  d4.dn_loss_cls: 0.0180  d4.dn_loss_bbox: 0.1179  d4.dn_loss_iou: 0.6355

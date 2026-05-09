@@ -8,22 +8,35 @@
 - `projects/dental_dino/dental_dino/models/utils/tooth_prior_modules.py`：`ToothPriorEncoder`、`MaskGuidedFeatureModulation`。
 - 牙齿语义图沿用 **CocoDataset 的 `data_prefix['seg']` + `LoadAnnotations(with_seg=True)`**，读入为 `gt_seg_map` / `gt_sem_seg`，与图像共用 RandomFlip/Resize/Crop，**不做静默兜底**；开启先验时若缺失则报错。
 
-## 配置
+## 配置（对应 Plan.md 实验 A–F，框架为 DINO）
 
-| 配置 | 说明 |
+| 实验 | 配置 |
 |------|------|
-| `configs/dino-4scale_r50_8xb2-12e_perio_baseline.py` | 单类 PerioXrays，标准 DINO |
-| `configs/dino-4scale_r50_8xb2-12e_perio_toothprior.py` | 同上 + 牙齿 PNG 目录 + `DINOToothPrior` |
+| A baseline | `configs/dino-4scale_r50_8xb2-12e_perio_baseline.py` |
+| B RGB+mask concat | `configs/dino-4scale_r50_8xb2-12e_perio_concat_mask.py`（`ConcatSemSegToImage` + `DetDataPreprocessor4Ch` + `in_channels=4`） |
+| C 仅 Prior Encoder | `configs/dino-4scale_r50_8xb2-12e_perio_prior_encoder_only.py`（调制关、`loss_tooth_prior_energy`） |
+| D Encoder + 调制 | `configs/dino-4scale_r50_8xb2-12e_perio_toothprior.py` |
+| E + 牙齿引导 query | `configs/dino-4scale_r50_8xb2-12e_perio_toothprior_queries.py` |
+| F + heatmap / NWD | `configs/dino-4scale_r50_8xb2-12e_perio_toothprior_aux.py` |
 
 数据集根目录默认：`/hdd1/zyh/Dental/mutil_repo/PerioXrays_Dataset/`（含 `train2017`、`SemanticsMask_train` 等）。
 
-## 训练示例
+## 训练 / 测试 / 可视化
 
-在 MMDetection 仓库根目录执行：
+在 MMDetection 仓库根目录执行（`PYTHONPATH` 需包含仓库根，脚本已设置）：
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python tools/train.py \
+CUDA_VISIBLE_DEVICES=0 bash projects/dental_dino/scripts/run_train.sh \
   projects/dental_dino/configs/dino-4scale_r50_8xb2-12e_perio_toothprior.py
+
+CUDA_VISIBLE_DEVICES=0 bash projects/dental_dino/scripts/run_test.sh \
+  projects/dental_dino/configs/dino-4scale_r50_8xb2-12e_perio_toothprior.py \
+  work_dirs/.../epoch_12.pth
+
+PYTHONPATH=. CUDA_VISIBLE_DEVICES=0 python projects/dental_dino/scripts/image_demo_dental.py \
+  /path/to/img.jpg \
+  projects/dental_dino/configs/dino-4scale_r50_8xb2-12e_perio_toothprior.py \
+  --weights work_dirs/.../epoch_12.pth --out-dir ./vis
 ```
 
 ## 与 RT-DETRv3（Paddle）分支的关系
