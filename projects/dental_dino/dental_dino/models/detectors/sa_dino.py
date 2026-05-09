@@ -5,12 +5,14 @@
 - SemanticCrossAttention on encoder output memory
 - Auxiliary tooth segmentation head
 - Optional tooth-guided decoder query initialization
+- Optional RoI-based refinement using high-res C2 features (v3a)
 """
 
 from typing import Dict, List, Tuple, Union
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from mmengine.logging import MMLogger
 from torch import Tensor
 
@@ -19,6 +21,9 @@ from mmdet.registry import MODELS
 from mmdet.structures import OptSampleList, SampleList
 
 from ..utils.aux_seg_head import AuxSegHead, aux_seg_loss
+from ..utils.roi_refine_head import (ToothRoIRefineHead, apply_delta_to_boxes,
+                                     cxcywh_to_xyxy, refine_loss,
+                                     xyxy_to_cxcywh)
 from ..utils.semantic_cross_attention import (SemanticCrossAttention,
                                               flatten_multi_scale_priors)
 from ..utils.tooth_embedding_encoder import ToothEmbeddingEncoder
@@ -60,6 +65,17 @@ class SADINO(DINO):
                  aux_seg_weight: float = 0.4,
                  aux_seg_mid_channels: int = 128,
                  aux_seg_upsample: int = 2,
+                 # RoI refinement (v3a)
+                 use_roi_refine: bool = False,
+                 roi_refine_c2_channels: int = 256,
+                 roi_refine_feat_channels: int = 256,
+                 roi_refine_h: int = 7,
+                 roi_refine_w: int = 10,
+                 roi_refine_num_dcn: int = 2,
+                 roi_refine_tooth_expand: float = 0.3,
+                 roi_refine_loss_weight: float = 1.0,
+                 roi_refine_topk: int = 100,
+                 roi_refine_iou_thr: float = 0.5,
                  # logging
                  gate_log_interval: int = 500,
                  **kwargs) -> None:
@@ -72,6 +88,10 @@ class SADINO(DINO):
         self.max_tooth_queries = max_tooth_queries
         self.use_aux_seg = use_aux_seg
         self.aux_seg_weight = float(aux_seg_weight)
+        self.use_roi_refine = use_roi_refine
+        self.roi_refine_loss_weight = float(roi_refine_loss_weight)
+        self.roi_refine_topk = roi_refine_topk
+        self.roi_refine_iou_thr = roi_refine_iou_thr
 
         self.tooth_encoder = ToothEmbeddingEncoder(
             num_classes=num_tooth_classes,
@@ -119,18 +139,32 @@ class SADINO(DINO):
                 num_classes=num_tooth_classes,
                 upsample_scale=aux_seg_upsample)
 
+        self.roi_refine_head = None
+        self._c2_proj = None
+        if use_roi_refine:
+            self.roi_refine_head = ToothRoIRefineHead(
+                in_channels=roi_refine_c2_channels,
+                feat_channels=roi_refine_feat_channels,
+                roi_h=roi_refine_h,
+                roi_w=roi_refine_w,
+                c2_stride=4,
+                num_dcn_layers=roi_refine_num_dcn,
+                num_tooth_classes=num_tooth_classes,
+                tooth_expand_ratio=roi_refine_tooth_expand)
+
         self._cached_tooth_priors: Tuple[Tensor, ...] | None = None
         self._cached_neck_feats: Tuple[Tensor, ...] | None = None
         self._cached_tooth_mask: Tensor | None = None
+        self._cached_c2_feat: Tensor | None = None
 
         log = MMLogger.get_current_instance()
         log.info(
             '[SADINO] modulation=%s(s=%s,bias=%s) cross_attn=%s(L=%d) '
-            'tooth_queries=%s(k=%d) aux_seg=%s(w=%s)',
+            'tooth_queries=%s(k=%d) aux_seg=%s(w=%s) roi_refine=%s',
             use_mask_modulation, modulation_strength, gate_init_bias,
             use_semantic_cross_attn, num_semantic_cross_attn_layers,
             use_tooth_guided_queries, max_tooth_queries,
-            use_aux_seg, aux_seg_weight)
+            use_aux_seg, aux_seg_weight, use_roi_refine)
 
     def init_weights(self) -> None:
         super().init_weights()
@@ -174,9 +208,17 @@ class SADINO(DINO):
             batch_inputs: Tensor,
             batch_data_samples: SampleList,
     ) -> Tuple[Tensor, ...]:
-        x = self.backbone(batch_inputs)
-        if self.with_neck:
-            x = self.neck(x)
+        backbone_outs = self.backbone(batch_inputs)
+
+        if self.use_roi_refine and len(backbone_outs) == 4:
+            c2_feat = backbone_outs[0]
+            self._cached_c2_feat = self.roi_refine_head.c2_proj(c2_feat)
+            neck_inputs = backbone_outs[1:]
+        else:
+            neck_inputs = backbone_outs
+            self._cached_c2_feat = None
+
+        x = self.neck(neck_inputs) if self.with_neck else neck_inputs
 
         ref_hw = (batch_inputs.shape[2], batch_inputs.shape[3])
         tooth = self._tooth_tensor_from_samples(batch_data_samples, ref_hw)
@@ -303,10 +345,140 @@ class SADINO(DINO):
             losses['loss_aux_seg'] = self.aux_seg_weight * aux_seg_loss(
                 seg_logits, tooth_mask, self.num_tooth_classes)
 
+        if (self.use_roi_refine and self.roi_refine_head is not None
+                and self._cached_c2_feat is not None):
+            refine_losses = self._compute_refine_loss(
+                head_inputs_dict, batch_inputs, batch_data_samples)
+            losses.update(refine_losses)
+
         self._cached_tooth_priors = None
         self._cached_neck_feats = None
         self._cached_tooth_mask = None
+        self._cached_c2_feat = None
         return losses
+
+    def _compute_refine_loss(
+        self,
+        head_inputs_dict: Dict,
+        batch_inputs: Tensor,
+        batch_data_samples: SampleList,
+    ) -> Dict[str, Tensor]:
+        """Compute refinement loss using the last decoder layer's outputs."""
+        references = head_inputs_dict['references']
+        last_ref = references[-1].detach()
+
+        img_h, img_w = batch_inputs.shape[2], batch_inputs.shape[3]
+        B = batch_inputs.shape[0]
+
+        all_deltas = []
+        all_iou_preds = []
+        all_pred_cxcywh = []
+        all_gt_cxcywh = []
+
+        for b in range(B):
+            gt_instances = batch_data_samples[b].gt_instances
+            gt_bboxes = gt_instances.bboxes
+            if gt_bboxes.numel() == 0:
+                continue
+
+            if self.training:
+                dn_meta = head_inputs_dict.get('dn_meta')
+                if dn_meta is not None:
+                    n_dn = dn_meta.get('num_denoising_queries', 0)
+                else:
+                    n_dn = 0
+                ref_b = last_ref[b, n_dn:]
+            else:
+                ref_b = last_ref[b]
+
+            pred_cxcywh_norm = ref_b
+            pred_cxcywh_abs = pred_cxcywh_norm.clone()
+            pred_cxcywh_abs[:, 0::2] *= img_w
+            pred_cxcywh_abs[:, 1::2] *= img_h
+            pred_xyxy = cxcywh_to_xyxy(pred_cxcywh_abs)
+
+            gt_xyxy = gt_bboxes
+            gt_cxcywh = xyxy_to_cxcywh(gt_xyxy)
+
+            iou_matrix = self._pairwise_iou(pred_xyxy, gt_xyxy)
+            max_iou, matched_gt = iou_matrix.max(dim=1)
+            pos_mask = max_iou >= self.roi_refine_iou_thr
+
+            if self.roi_refine_topk > 0:
+                topk_k = min(self.roi_refine_topk, pos_mask.sum().item())
+                if topk_k == 0:
+                    topk_k = min(
+                        self.roi_refine_topk,
+                        min(10, max_iou.shape[0]))
+                    _, topk_idx = max_iou.topk(topk_k)
+                    pos_mask = torch.zeros_like(pos_mask)
+                    pos_mask[topk_idx] = True
+
+            if not pos_mask.any():
+                continue
+
+            pos_pred_xyxy = pred_xyxy[pos_mask]
+            pos_gt_idx = matched_gt[pos_mask]
+            pos_gt_cxcywh = gt_cxcywh[pos_gt_idx]
+            pos_pred_cxcywh = pred_cxcywh_abs[pos_mask]
+
+            if self._cached_tooth_mask is not None:
+                expanded, tooth_ids = \
+                    self.roi_refine_head._expand_boxes_with_tooth(
+                        pos_pred_xyxy, self._cached_tooth_mask[b:b + 1],
+                        img_h, img_w)
+            else:
+                expanded = pos_pred_xyxy
+                tooth_ids = None
+
+            batch_idx = torch.full(
+                (expanded.shape[0],), b,
+                dtype=torch.long, device=expanded.device)
+            delta, iou_pred = self.roi_refine_head(
+                self._cached_c2_feat, expanded, batch_idx, tooth_ids)
+
+            all_deltas.append(delta)
+            all_iou_preds.append(iou_pred)
+            all_pred_cxcywh.append(pos_pred_cxcywh)
+            all_gt_cxcywh.append(pos_gt_cxcywh)
+
+        if not all_deltas:
+            zero = batch_inputs.sum() * 0.0
+            return dict(
+                loss_refine_delta=zero,
+                loss_refine_giou=zero,
+                loss_refine_iou=zero)
+
+        cat_delta = torch.cat(all_deltas, dim=0)
+        cat_iou = torch.cat(all_iou_preds, dim=0)
+        cat_pred = torch.cat(all_pred_cxcywh, dim=0)
+        cat_gt = torch.cat(all_gt_cxcywh, dim=0)
+
+        norm_factor = cat_pred.new_tensor([img_w, img_h, img_w, img_h])
+        cat_pred_norm = cat_pred / norm_factor
+        cat_gt_norm = cat_gt / norm_factor
+
+        r_losses = refine_loss(
+            cat_delta, cat_iou, cat_pred_norm, cat_gt_norm)
+
+        w = self.roi_refine_loss_weight
+        for k in r_losses:
+            r_losses[k] = r_losses[k] * w
+
+        return r_losses
+
+    @staticmethod
+    def _pairwise_iou(boxes1: Tensor, boxes2: Tensor) -> Tensor:
+        """Compute NxM pairwise IoU between boxes1 [N,4] and boxes2 [M,4]."""
+        area1 = (boxes1[:, 2] - boxes1[:, 0]) * (boxes1[:, 3] - boxes1[:, 1])
+        area2 = (boxes2[:, 2] - boxes2[:, 0]) * (boxes2[:, 3] - boxes2[:, 1])
+
+        lt = torch.max(boxes1[:, None, :2], boxes2[None, :, :2])
+        rb = torch.min(boxes1[:, None, 2:], boxes2[None, :, 2:])
+        wh = (rb - lt).clamp(min=0)
+        inter = wh[..., 0] * wh[..., 1]
+
+        return inter / (area1[:, None] + area2[None, :] - inter).clamp(1e-6)
 
     def predict(self,
                 batch_inputs: Tensor,
@@ -320,12 +492,76 @@ class SADINO(DINO):
             **head_inputs_dict,
             rescale=rescale,
             batch_data_samples=batch_data_samples)
+
+        if (self.use_roi_refine and self.roi_refine_head is not None
+                and self._cached_c2_feat is not None):
+            results_list = self._refine_predictions(
+                results_list, batch_inputs, batch_data_samples, rescale)
+
         batch_data_samples = self.add_pred_to_datasample(
             batch_data_samples, results_list)
         self._cached_tooth_priors = None
         self._cached_neck_feats = None
         self._cached_tooth_mask = None
+        self._cached_c2_feat = None
         return batch_data_samples
+
+    def _refine_predictions(
+        self,
+        results_list: list,
+        batch_inputs: Tensor,
+        batch_data_samples: SampleList,
+        rescale: bool,
+    ) -> list:
+        """Apply RoI refinement to prediction results during inference."""
+        img_h, img_w = batch_inputs.shape[2], batch_inputs.shape[3]
+
+        for b, results in enumerate(results_list):
+            bboxes = results.bboxes
+            if bboxes.numel() == 0:
+                continue
+
+            if rescale:
+                scale_factor = batch_data_samples[b].scale_factor
+                sf = bboxes.new_tensor(scale_factor).repeat(2)
+                bboxes_abs = bboxes * sf
+            else:
+                bboxes_abs = bboxes.clone()
+
+            pred_cxcywh = xyxy_to_cxcywh(bboxes_abs)
+
+            if self._cached_tooth_mask is not None:
+                expanded, tooth_ids = \
+                    self.roi_refine_head._expand_boxes_with_tooth(
+                        bboxes_abs, self._cached_tooth_mask[b:b + 1],
+                        img_h, img_w)
+            else:
+                expanded = bboxes_abs
+                tooth_ids = None
+
+            batch_idx = torch.full(
+                (expanded.shape[0],), b,
+                dtype=torch.long, device=expanded.device)
+            delta, iou_pred = self.roi_refine_head(
+                self._cached_c2_feat, expanded, batch_idx, tooth_ids)
+
+            refined_cxcywh = apply_delta_to_boxes(pred_cxcywh, delta)
+            refined_xyxy = cxcywh_to_xyxy(refined_cxcywh)
+
+            refined_xyxy[:, 0].clamp_(min=0)
+            refined_xyxy[:, 1].clamp_(min=0)
+            refined_xyxy[:, 2].clamp_(max=img_w)
+            refined_xyxy[:, 3].clamp_(max=img_h)
+
+            if rescale:
+                refined_xyxy = refined_xyxy / sf
+
+            results.bboxes = refined_xyxy
+
+            iou_score = iou_pred.squeeze(-1).sigmoid()
+            results.scores = results.scores * iou_score
+
+        return results_list
 
     def _forward(self,
                  batch_inputs: Tensor,
@@ -338,4 +574,5 @@ class SADINO(DINO):
         self._cached_tooth_priors = None
         self._cached_neck_feats = None
         self._cached_tooth_mask = None
+        self._cached_c2_feat = None
         return out
