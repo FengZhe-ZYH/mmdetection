@@ -71,24 +71,44 @@ class ToothPriorEncoder(nn.Module):
 
 
 class MaskGuidedFeatureModulation(nn.Module):
-    """feat_out = feat * (1 + s*sigmoid(Wg(p))) + s*Wb(p), ``s`` = modulation_strength."""
+    """feat_out = feat * (1 + s*sigmoid(Wg(p))) + s*Wb(p), ``s`` = modulation_strength.
+
+    v2 improvements over original:
+    - Gate conv bias initialized to negative value so sigmoid starts near 0
+      (model must learn to "open" the gate) instead of 0.5 (no differentiation).
+    - Added spatial attention path: prior and feat interact via channel-wise
+      dot product before gating, producing spatially-aware modulation.
+    - Reduced logging frequency to avoid I/O bottleneck.
+    """
 
     def __init__(self,
                  feat_channels: int,
                  prior_channels: int,
                  num_levels: int,
-                 gate_log_interval: int = 200,
-                 modulation_strength: float = 1.0) -> None:
+                 gate_log_interval: int = 500,
+                 modulation_strength: float = 1.0,
+                 gate_init_bias: float = -2.0) -> None:
         super().__init__()
         self.modulation_strength = float(modulation_strength)
         self.gate_log_interval = gate_log_interval
         self._step = 0
+
+        self.prior_projs = nn.ModuleList([
+            nn.Conv2d(prior_channels, feat_channels, 1)
+            for _ in range(num_levels)
+        ])
         self.gate_convs = nn.ModuleList([
-            nn.Conv2d(prior_channels, feat_channels, 1) for _ in range(num_levels)
+            nn.Conv2d(feat_channels, feat_channels, 1)
+            for _ in range(num_levels)
         ])
         self.bias_convs = nn.ModuleList([
-            nn.Conv2d(prior_channels, feat_channels, 1) for _ in range(num_levels)
+            nn.Conv2d(prior_channels, feat_channels, 1)
+            for _ in range(num_levels)
         ])
+
+        for gc in self.gate_convs:
+            if gc.bias is not None:
+                nn.init.constant_(gc.bias, gate_init_bias)
 
     def forward(self, mlvl_feats: Tuple[torch.Tensor, ...],
                 priors: Tuple[torch.Tensor, ...]) -> Tuple[torch.Tensor, ...]:
@@ -99,23 +119,24 @@ class MaskGuidedFeatureModulation(nn.Module):
                 f'mlvl_feats ({len(mlvl_feats)}) vs priors ({len(priors)})')
         s = self.modulation_strength
         out = []
-        logger = MMLogger.get_current_instance()
+        do_log = (self._step % self.gate_log_interval == 0)
         for i, (feat, pr) in enumerate(zip(mlvl_feats, priors)):
             if feat.shape[0] != pr.shape[0]:
                 raise RuntimeError('batch size mismatch feat vs prior')
             if feat.shape[2:] != pr.shape[2:]:
                 raise RuntimeError(
-                    f'spatial mismatch level {i}: feat {feat.shape} prior {pr.shape}'
-                )
-            gate = torch.sigmoid(self.gate_convs[i](pr))
+                    f'spatial mismatch level {i}: feat {feat.shape} '
+                    f'prior {pr.shape}')
+            prior_feat = self.prior_projs[i](pr)
+            interaction = feat * prior_feat
+            gate = torch.sigmoid(self.gate_convs[i](interaction))
             bias = self.bias_convs[i](pr)
-            if self._step % self.gate_log_interval == 0:
+            if do_log:
                 with torch.no_grad():
-                    logger.info(
-                        '[MaskGuidedFeatureModulation] lvl=%d feat=%s prior=%s '
-                        'gate mean=%.6f min=%.6f max=%.6f', i,
-                        tuple(feat.shape), tuple(pr.shape),
-                        float(gate.mean()), float(gate.min()), float(gate.max()))
+                    MMLogger.get_current_instance().info(
+                        '[MaskMod] lvl=%d gate mean=%.4f min=%.4f max=%.4f',
+                        i, float(gate.mean()), float(gate.min()),
+                        float(gate.max()))
             out.append(feat * (1.0 + s * gate) + s * bias)
         self._step += 1
         return tuple(out)
