@@ -4,6 +4,7 @@
 - Improved MaskGuidedFeatureModulation with negative-bias gate init
 - SemanticCrossAttention on encoder output memory
 - Auxiliary tooth segmentation head
+- Optional tooth-guided decoder query initialization
 """
 
 from typing import Dict, List, Tuple, Union
@@ -21,6 +22,7 @@ from ..utils.aux_seg_head import AuxSegHead, aux_seg_loss
 from ..utils.semantic_cross_attention import (SemanticCrossAttention,
                                               flatten_multi_scale_priors)
 from ..utils.tooth_embedding_encoder import ToothEmbeddingEncoder
+from ..utils.tooth_guided_query_init import ToothGuidedQueryInit
 from ..utils.tooth_prior_modules import MaskGuidedFeatureModulation
 
 
@@ -50,6 +52,9 @@ class SADINO(DINO):
                  num_semantic_cross_attn_layers: int = 3,
                  semantic_cross_attn_heads: int = 8,
                  semantic_cross_attn_dropout: float = 0.0,
+                 # tooth-guided query initialization
+                 use_tooth_guided_queries: bool = False,
+                 max_tooth_queries: int = 32,
                  # auxiliary segmentation
                  use_aux_seg: bool = True,
                  aux_seg_weight: float = 0.4,
@@ -63,6 +68,8 @@ class SADINO(DINO):
         self.num_tooth_classes = num_tooth_classes
         self.use_mask_modulation = use_mask_modulation
         self.use_semantic_cross_attn = use_semantic_cross_attn
+        self.use_tooth_guided_queries = use_tooth_guided_queries
+        self.max_tooth_queries = max_tooth_queries
         self.use_aux_seg = use_aux_seg
         self.aux_seg_weight = float(aux_seg_weight)
 
@@ -93,6 +100,17 @@ class SADINO(DINO):
                 for _ in range(num_semantic_cross_attn_layers)
             ])
 
+        self.tooth_query_init = None
+        if use_tooth_guided_queries:
+            if max_tooth_queries <= 0 or max_tooth_queries >= self.num_queries:
+                raise ValueError(
+                    f'max_tooth_queries must be in (0, {self.num_queries}), '
+                    f'got {max_tooth_queries}')
+            self.tooth_query_init = ToothGuidedQueryInit(
+                max_tooth_queries=max_tooth_queries,
+                num_tooth_classes=num_tooth_classes,
+                embed_dims=self.embed_dims)
+
         self.aux_seg_head = None
         if use_aux_seg:
             self.aux_seg_head = AuxSegHead(
@@ -103,13 +121,15 @@ class SADINO(DINO):
 
         self._cached_tooth_priors: Tuple[Tensor, ...] | None = None
         self._cached_neck_feats: Tuple[Tensor, ...] | None = None
+        self._cached_tooth_mask: Tensor | None = None
 
         log = MMLogger.get_current_instance()
         log.info(
-            '[SADINO] tooth_encoder=%s modulation=%s(strength=%s,gate_bias=%s) '
-            'semantic_cross_attn=%s(layers=%d) aux_seg=%s(w=%s)',
-            True, use_mask_modulation, modulation_strength, gate_init_bias,
+            '[SADINO] modulation=%s(s=%s,bias=%s) cross_attn=%s(L=%d) '
+            'tooth_queries=%s(k=%d) aux_seg=%s(w=%s)',
+            use_mask_modulation, modulation_strength, gate_init_bias,
             use_semantic_cross_attn, num_semantic_cross_attn_layers,
+            use_tooth_guided_queries, max_tooth_queries,
             use_aux_seg, aux_seg_weight)
 
     def init_weights(self) -> None:
@@ -163,6 +183,7 @@ class SADINO(DINO):
         priors = self.tooth_encoder(tooth)
         self._cached_tooth_priors = priors
         self._cached_neck_feats = x
+        self._cached_tooth_mask = tooth
 
         if self.use_mask_modulation and self.mask_modulation is not None:
             x = self.mask_modulation(x, priors)
@@ -195,6 +216,55 @@ class SADINO(DINO):
             memory_mask=feat_mask,
             spatial_shapes=spatial_shapes)
         return encoder_outputs_dict
+
+    def pre_decoder(self,
+                    memory: Tensor,
+                    memory_mask: Tensor,
+                    spatial_shapes: Tensor,
+                    batch_data_samples: OptSampleList = None) -> Tuple[Dict]:
+        """Override DINO pre_decoder to inject tooth-guided queries.
+
+        When ``use_tooth_guided_queries`` is True, the last
+        ``max_tooth_queries`` slots (in the matching part) are replaced by
+        tooth-derived reference points and content embeddings.  This preserves
+        the total number of queries and does not interfere with DN queries.
+        """
+        decoder_inputs_dict, head_inputs_dict = super().pre_decoder(
+            memory=memory,
+            memory_mask=memory_mask,
+            spatial_shapes=spatial_shapes,
+            batch_data_samples=batch_data_samples)
+
+        if (self.use_tooth_guided_queries and
+                self.tooth_query_init is not None and
+                self._cached_tooth_mask is not None):
+            tooth_refs, tooth_content = self.tooth_query_init(
+                self._cached_tooth_mask)
+            k = self.max_tooth_queries
+            query = decoder_inputs_dict['query']
+            ref_pts = decoder_inputs_dict['reference_points']
+
+            if self.training:
+                n_dn = query.shape[1] - self.num_queries
+                match_query = query[:, n_dn:]
+                match_refs = ref_pts[:, n_dn:]
+
+                match_query = torch.cat(
+                    [match_query[:, :-k], tooth_content], dim=1)
+                match_refs = torch.cat(
+                    [match_refs[:, :-k], tooth_refs], dim=1)
+
+                decoder_inputs_dict['query'] = torch.cat(
+                    [query[:, :n_dn], match_query], dim=1)
+                decoder_inputs_dict['reference_points'] = torch.cat(
+                    [ref_pts[:, :n_dn], match_refs], dim=1)
+            else:
+                decoder_inputs_dict['query'] = torch.cat(
+                    [query[:, :-k], tooth_content], dim=1)
+                decoder_inputs_dict['reference_points'] = torch.cat(
+                    [ref_pts[:, :-k], tooth_refs], dim=1)
+
+        return decoder_inputs_dict, head_inputs_dict
 
     def forward_transformer(
         self,
@@ -235,6 +305,7 @@ class SADINO(DINO):
 
         self._cached_tooth_priors = None
         self._cached_neck_feats = None
+        self._cached_tooth_mask = None
         return losses
 
     def predict(self,
@@ -253,6 +324,7 @@ class SADINO(DINO):
             batch_data_samples, results_list)
         self._cached_tooth_priors = None
         self._cached_neck_feats = None
+        self._cached_tooth_mask = None
         return batch_data_samples
 
     def _forward(self,
@@ -265,4 +337,5 @@ class SADINO(DINO):
         out = self.bbox_head.forward(**head_inputs_dict)
         self._cached_tooth_priors = None
         self._cached_neck_feats = None
+        self._cached_tooth_mask = None
         return out
