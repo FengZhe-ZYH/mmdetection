@@ -28,6 +28,7 @@ from ..utils.semantic_cross_attention import (SemanticCrossAttention,
                                               flatten_multi_scale_priors)
 from ..utils.tooth_embedding_encoder import ToothEmbeddingEncoder
 from ..utils.tooth_guided_query_init import ToothGuidedQueryInit
+from ..utils.tooth_local_attention import ToothLocalAttention
 from ..utils.tooth_prior_modules import MaskGuidedFeatureModulation
 
 
@@ -76,6 +77,12 @@ class SADINO(DINO):
                  roi_refine_loss_weight: float = 1.0,
                  roi_refine_topk: int = 100,
                  roi_refine_iou_thr: float = 0.5,
+                 # tooth-local dense attention (v3b)
+                 use_tooth_local_attn: bool = False,
+                 tooth_local_attn_heads: int = 8,
+                 tooth_local_attn_layers: int = 1,
+                 tooth_local_attn_ffn_dim: int = 1024,
+                 tooth_local_attn_dropout: float = 0.0,
                  # logging
                  gate_log_interval: int = 500,
                  **kwargs) -> None:
@@ -92,6 +99,7 @@ class SADINO(DINO):
         self.roi_refine_loss_weight = float(roi_refine_loss_weight)
         self.roi_refine_topk = roi_refine_topk
         self.roi_refine_iou_thr = roi_refine_iou_thr
+        self.use_tooth_local_attn = use_tooth_local_attn
 
         self.tooth_encoder = ToothEmbeddingEncoder(
             num_classes=num_tooth_classes,
@@ -152,6 +160,15 @@ class SADINO(DINO):
                 num_tooth_classes=num_tooth_classes,
                 tooth_expand_ratio=roi_refine_tooth_expand)
 
+        self.tooth_local_attn = None
+        if use_tooth_local_attn:
+            self.tooth_local_attn = ToothLocalAttention(
+                embed_dims=self.embed_dims,
+                num_heads=tooth_local_attn_heads,
+                dropout=tooth_local_attn_dropout,
+                ffn_dim=tooth_local_attn_ffn_dim,
+                num_layers=tooth_local_attn_layers)
+
         self._cached_tooth_priors: Tuple[Tensor, ...] | None = None
         self._cached_neck_feats: Tuple[Tensor, ...] | None = None
         self._cached_tooth_mask: Tensor | None = None
@@ -160,11 +177,13 @@ class SADINO(DINO):
         log = MMLogger.get_current_instance()
         log.info(
             '[SADINO] modulation=%s(s=%s,bias=%s) cross_attn=%s(L=%d) '
-            'tooth_queries=%s(k=%d) aux_seg=%s(w=%s) roi_refine=%s',
+            'tooth_queries=%s(k=%d) aux_seg=%s(w=%s) roi_refine=%s '
+            'local_attn=%s(L=%d)',
             use_mask_modulation, modulation_strength, gate_init_bias,
             use_semantic_cross_attn, num_semantic_cross_attn_layers,
             use_tooth_guided_queries, max_tooth_queries,
-            use_aux_seg, aux_seg_weight, use_roi_refine)
+            use_aux_seg, aux_seg_weight, use_roi_refine,
+            use_tooth_local_attn, tooth_local_attn_layers)
 
     def init_weights(self) -> None:
         super().init_weights()
@@ -323,8 +342,48 @@ class SADINO(DINO):
         decoder_inputs_dict.update(tmp_dec_in)
 
         decoder_outputs_dict = self.forward_decoder(**decoder_inputs_dict)
+
+        if (self.use_tooth_local_attn and
+                self.tooth_local_attn is not None and
+                self._cached_tooth_mask is not None):
+            decoder_outputs_dict = self._apply_tooth_local_attn(
+                decoder_outputs_dict,
+                encoder_outputs_dict,
+                decoder_inputs_dict)
+
         head_inputs_dict.update(decoder_outputs_dict)
         return head_inputs_dict
+
+    def _apply_tooth_local_attn(
+        self,
+        decoder_outputs_dict: Dict,
+        encoder_outputs_dict: Dict,
+        decoder_inputs_dict: Dict,
+    ) -> Dict:
+        """Apply tooth-local dense attention to the last decoder layer output."""
+        hidden_states = decoder_outputs_dict['hidden_states']
+        references = decoder_outputs_dict['references']
+
+        last_hidden = hidden_states[-1]
+        last_ref = references[-1]
+
+        memory = decoder_inputs_dict['memory']
+        spatial_shapes = encoder_outputs_dict['spatial_shapes']
+
+        refined = self.tooth_local_attn(
+            query=last_hidden,
+            memory=memory,
+            ref_points=last_ref,
+            tooth_mask=self._cached_tooth_mask,
+            spatial_shapes=spatial_shapes,
+            num_tooth_classes=self.num_tooth_classes)
+
+        hidden_states = list(hidden_states)
+        hidden_states[-1] = refined
+        hidden_states = torch.stack(hidden_states, dim=0)
+
+        decoder_outputs_dict['hidden_states'] = hidden_states
+        return decoder_outputs_dict
 
     def loss(self, batch_inputs: Tensor,
              batch_data_samples: SampleList) -> Union[dict, list]:
