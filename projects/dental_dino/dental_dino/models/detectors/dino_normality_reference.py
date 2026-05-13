@@ -47,6 +47,10 @@ class DINONormalityReference(DINO):
                  anomaly_score_weight: float = 0.35,
                  proto_score_weight: float = 0.15,
                  prediction_score_eps: float = 1e-4,
+                 use_query_coupling: bool = False,
+                 query_coupling_weight: float = 0.10,
+                 query_anomaly_weight: float = 0.50,
+                 query_proto_weight: float = 0.20,
                  log_interval: int = 200,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -64,6 +68,10 @@ class DINONormalityReference(DINO):
         self.anomaly_score_weight = float(anomaly_score_weight)
         self.proto_score_weight = float(proto_score_weight)
         self.prediction_score_eps = float(prediction_score_eps)
+        self.use_query_coupling = bool(use_query_coupling)
+        self.query_coupling_weight = float(query_coupling_weight)
+        self.query_anomaly_weight = float(query_anomaly_weight)
+        self.query_proto_weight = float(query_proto_weight)
         self.log_interval = int(log_interval)
 
         if self.normality_feat_level < 0:
@@ -83,6 +91,11 @@ class DINONormalityReference(DINO):
             nn.ReLU(inplace=True),
             nn.Linear(self.normality_proj_dim // 2, 1),
         )
+        self.normality_query_adapter = nn.Sequential(
+            nn.Linear(self.normality_proj_dim, self.embed_dims),
+            nn.ReLU(inplace=True),
+            nn.Linear(self.embed_dims, self.embed_dims),
+        )
         self.register_buffer(
             'healthy_prototype',
             torch.zeros(self.normality_proj_dim),
@@ -95,11 +108,13 @@ class DINONormalityReference(DINO):
         MMLogger.get_current_instance().info(
             '[DINONormalityReference] enabled=%s feat_level=%d proj_dim=%d '
             'ema=%s loss_normality=%s loss_anomaly=%s '
-            'prediction_coupling=%s anomaly_w=%s proto_w=%s',
+            'prediction_coupling=%s anomaly_w=%s proto_w=%s '
+            'query_coupling=%s query_w=%s',
             use_normality_reference, normality_feat_level, normality_proj_dim,
             normality_ema_momentum, loss_normality_weight,
             loss_anomaly_weight, self.use_prediction_coupling,
-            self.anomaly_score_weight, self.proto_score_weight)
+            self.anomaly_score_weight, self.proto_score_weight,
+            self.use_query_coupling, self.query_coupling_weight)
 
     def init_weights(self) -> None:
         super().init_weights()
@@ -111,6 +126,83 @@ class DINONormalityReference(DINO):
             if isinstance(module, nn.Linear):
                 nn.init.xavier_uniform_(module.weight)
                 nn.init.zeros_(module.bias)
+        for module in self.normality_query_adapter.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.xavier_uniform_(module.weight)
+                nn.init.zeros_(module.bias)
+
+    def pre_decoder(self, memory: Tensor, memory_mask: Tensor,
+                    spatial_shapes: Tensor,
+                    batch_data_samples: OptSampleList = None) -> Tuple[Dict]:
+        """Prepare DINO decoder queries with optional normality injection."""
+        bs, _, _ = memory.shape
+        cls_out_features = self.bbox_head.cls_branches[
+            self.decoder.num_layers].out_features
+
+        output_memory, output_proposals = self.gen_encoder_output_proposals(
+            memory, memory_mask, spatial_shapes)
+        enc_outputs_class = self.bbox_head.cls_branches[
+            self.decoder.num_layers](output_memory)
+        enc_outputs_coord_unact = self.bbox_head.reg_branches[
+            self.decoder.num_layers](output_memory) + output_proposals
+
+        topk_indices = torch.topk(
+            enc_outputs_class.max(-1)[0], k=self.num_queries, dim=1)[1]
+        topk_score = torch.gather(
+            enc_outputs_class, 1,
+            topk_indices.unsqueeze(-1).repeat(1, 1, cls_out_features))
+        topk_coords_unact = torch.gather(
+            enc_outputs_coord_unact, 1,
+            topk_indices.unsqueeze(-1).repeat(1, 1, 4))
+        topk_coords = topk_coords_unact.sigmoid()
+        topk_memory = torch.gather(
+            output_memory, 1,
+            topk_indices.unsqueeze(-1).repeat(1, 1, self.embed_dims))
+        topk_coords_unact = topk_coords_unact.detach()
+
+        query = self.query_embedding.weight[:, None, :]
+        query = query.repeat(1, bs, 1).transpose(0, 1)
+        if self.use_normality_reference and self.use_query_coupling:
+            query = self._inject_normality_into_query(query, topk_memory)
+
+        if self.training:
+            dn_label_query, dn_bbox_query, dn_mask, dn_meta = \
+                self.dn_query_generator(batch_data_samples)
+            query = torch.cat([dn_label_query, query], dim=1)
+            reference_points = torch.cat([dn_bbox_query, topk_coords_unact],
+                                         dim=1)
+        else:
+            reference_points = topk_coords_unact
+            dn_mask, dn_meta = None, None
+        reference_points = reference_points.sigmoid()
+
+        decoder_inputs_dict = dict(
+            query=query,
+            memory=memory,
+            reference_points=reference_points,
+            dn_mask=dn_mask)
+        head_inputs_dict = dict(
+            enc_outputs_class=topk_score,
+            enc_outputs_coord=topk_coords,
+            dn_meta=dn_meta) if self.training else dict()
+        return decoder_inputs_dict, head_inputs_dict
+
+    def _inject_normality_into_query(self, query: Tensor,
+                                     topk_memory: Tensor) -> Tensor:
+        normality_feat = F.normalize(
+            self.normality_projector(topk_memory), dim=-1)
+        anomaly_prob = self.anomaly_head(normality_feat).sigmoid().squeeze(-1)
+        gate = 1.0 + self.query_anomaly_weight * (anomaly_prob - 0.5) * 2.0
+
+        if bool(self.healthy_prototype_initialized.item()):
+            proto = F.normalize(self.healthy_prototype.detach(), dim=0)
+            proto_dist = 1.0 - (normality_feat * proto).sum(dim=-1)
+            gate = gate + self.query_proto_weight * (
+                proto_dist - self.lesion_proto_margin)
+
+        query_delta = self.normality_query_adapter(normality_feat)
+        query_delta = query_delta * gate.clamp(0.25, 2.0).unsqueeze(-1)
+        return query + self.query_coupling_weight * query_delta
 
     def _tooth_tensor_from_samples(
             self, batch_data_samples: SampleList,
