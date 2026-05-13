@@ -43,6 +43,10 @@ class DINONormalityReference(DINO):
                  loss_anomaly_weight: float = 0.1,
                  lesion_proto_margin: float = 0.5,
                  lesion_healthy_margin: float = 0.2,
+                 use_prediction_coupling: bool = False,
+                 anomaly_score_weight: float = 0.35,
+                 proto_score_weight: float = 0.15,
+                 prediction_score_eps: float = 1e-4,
                  log_interval: int = 200,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -56,12 +60,18 @@ class DINONormalityReference(DINO):
         self.loss_anomaly_weight = float(loss_anomaly_weight)
         self.lesion_proto_margin = float(lesion_proto_margin)
         self.lesion_healthy_margin = float(lesion_healthy_margin)
+        self.use_prediction_coupling = bool(use_prediction_coupling)
+        self.anomaly_score_weight = float(anomaly_score_weight)
+        self.proto_score_weight = float(proto_score_weight)
+        self.prediction_score_eps = float(prediction_score_eps)
         self.log_interval = int(log_interval)
 
         if self.normality_feat_level < 0:
             raise ValueError('normality_feat_level must be non-negative.')
         if self.normality_ema_momentum <= 0 or self.normality_ema_momentum > 1:
             raise ValueError('normality_ema_momentum must be in (0, 1].')
+        if self.prediction_score_eps <= 0 or self.prediction_score_eps >= 0.5:
+            raise ValueError('prediction_score_eps must be in (0, 0.5).')
 
         self.normality_projector = nn.Sequential(
             nn.Linear(self.embed_dims, self.embed_dims),
@@ -84,10 +94,12 @@ class DINONormalityReference(DINO):
 
         MMLogger.get_current_instance().info(
             '[DINONormalityReference] enabled=%s feat_level=%d proj_dim=%d '
-            'ema=%s loss_normality=%s loss_anomaly=%s',
+            'ema=%s loss_normality=%s loss_anomaly=%s '
+            'prediction_coupling=%s anomaly_w=%s proto_w=%s',
             use_normality_reference, normality_feat_level, normality_proj_dim,
             normality_ema_momentum, loss_normality_weight,
-            loss_anomaly_weight)
+            loss_anomaly_weight, self.use_prediction_coupling,
+            self.anomaly_score_weight, self.proto_score_weight)
 
     def init_weights(self) -> None:
         super().init_weights()
@@ -302,7 +314,90 @@ class DINONormalityReference(DINO):
             **head_inputs_dict,
             rescale=rescale,
             batch_data_samples=batch_data_samples)
+        if self.use_normality_reference and self.use_prediction_coupling:
+            results_list = self._couple_prediction_scores(
+                results_list, img_feats, batch_data_samples, rescale=rescale)
         return self.add_pred_to_datasample(batch_data_samples, results_list)
+
+    def _couple_prediction_scores(self, results_list: List,
+                                  img_feats: Tuple[Tensor, ...],
+                                  batch_data_samples: SampleList,
+                                  rescale: bool = True) -> List:
+        """Re-rank DINO predictions with normality/anomaly evidence.
+
+        The base DINO head still proposes boxes and class scores.  This step
+        pools each predicted box from the normality feature level, scores how
+        far it is from the healthy prototype, and adjusts the final score
+        logits.  Inference therefore uses the normality branch directly while
+        leaving the detector architecture intact.
+        """
+        if self.normality_feat_level >= len(img_feats):
+            raise ValueError(
+                f'normality_feat_level={self.normality_feat_level} but only '
+                f'{len(img_feats)} feature levels are available.')
+
+        feat = img_feats[self.normality_feat_level]
+        for batch_idx, (results, sample) in enumerate(
+                zip(results_list, batch_data_samples)):
+            if (not hasattr(results, 'bboxes') or results.bboxes.numel() == 0
+                    or not hasattr(results, 'scores')):
+                continue
+
+            boxes = self._boxes_to_img_space(
+                results.bboxes, sample.metainfo, rescale=rescale)
+            pooled = self._pool_prediction_boxes(
+                feat[batch_idx], boxes, sample.metainfo)
+            if pooled.numel() == 0:
+                continue
+
+            normality_feat = F.normalize(
+                self.normality_projector(pooled), dim=1)
+            anomaly_prob = self.anomaly_head(normality_feat).sigmoid().squeeze(1)
+
+            score_delta = self.anomaly_score_weight * (anomaly_prob - 0.5) * 2.0
+            if bool(self.healthy_prototype_initialized.item()):
+                proto = F.normalize(self.healthy_prototype.detach(), dim=0)
+                proto_dist = 1.0 - (normality_feat * proto).sum(dim=1)
+                score_delta = score_delta + self.proto_score_weight * (
+                    proto_dist - self.lesion_proto_margin)
+                results.normality_proto_dist = proto_dist
+            else:
+                results.normality_proto_dist = anomaly_prob.new_zeros(
+                    anomaly_prob.shape)
+
+            scores = results.scores.clamp(
+                self.prediction_score_eps, 1.0 - self.prediction_score_eps)
+            score_logits = torch.logit(scores)
+            results.scores = torch.sigmoid(score_logits + score_delta)
+            results.normality_anomaly = anomaly_prob
+            results.normality_score_delta = score_delta
+        return results_list
+
+    def _boxes_to_img_space(self, bboxes: Tensor, img_meta: dict,
+                            rescale: bool) -> Tensor:
+        boxes = bboxes.detach()
+        if rescale:
+            scale_factor = boxes.new_tensor(img_meta['scale_factor']).repeat(
+                (1, 2))
+            boxes = boxes * scale_factor
+        img_h, img_w = img_meta['img_shape']
+        boxes = boxes.clone()
+        boxes[:, 0::2].clamp_(min=0, max=img_w)
+        boxes[:, 1::2].clamp_(min=0, max=img_h)
+        return boxes
+
+    def _pool_prediction_boxes(self, feat: Tensor, boxes: Tensor,
+                               img_meta: dict) -> Tensor:
+        _, feat_h, feat_w = feat.shape
+        img_h, img_w = img_meta['img_shape']
+        pooled_feats: List[Tensor] = []
+        for box in boxes:
+            x1, y1, x2, y2 = self._scale_box_to_feature(
+                box, img_w, img_h, feat_w, feat_h, expand_ratio=0.0)
+            pooled_feats.append(feat[:, y1:y2, x1:x2].mean(dim=(1, 2)))
+        if not pooled_feats:
+            return feat.new_zeros((0, feat.size(0)))
+        return torch.stack(pooled_feats, dim=0)
 
     def _forward(self,
                  batch_inputs: Tensor,
