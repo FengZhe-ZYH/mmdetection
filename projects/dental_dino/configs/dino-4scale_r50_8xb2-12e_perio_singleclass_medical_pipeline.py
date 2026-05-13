@@ -17,12 +17,12 @@
 #   CUDA_VISIBLE_DEVICES=0 python tools/train.py \
 #     projects/dental_dino/configs/dino-4scale_r50_8xb2-12e_perio_singleclass_medical_pipeline.py
 
-_base_ = ['../../../configs/dino/dino-4scale_r50_8xb2-12e_coco.py']
+_base_ = ['../../../configs/dino/dino-4scale_r50_8xb2-24e_coco.py']
 
 # 按你的实际数据根目录修改（可为绝对路径）
-data_root = 'data/'
+data_root = '/hdd1/zyh/Datasets/CariesXrays/coco_official/'
 metainfo = dict(
-    classes=('Apical Periodontitis', ),
+    classes=('Decay', ),
     palette=[(220, 20, 60)],
 )
 

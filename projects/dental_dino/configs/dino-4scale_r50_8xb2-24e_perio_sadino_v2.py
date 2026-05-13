@@ -18,9 +18,9 @@ custom_imports = dict(
     allow_failed_imports=False,
 )
 
-data_root = '/hdd1/zyh/Dental/mutil_repo/PerioXrays_Dataset/'
+data_root = '/hdd1/zyh/Datasets/CariesXrays/coco_official/'
 metainfo = dict(
-    classes=('Apical Periodontitis', ),
+    classes=('Decay', ),
     palette=[(220, 20, 60)],
 )
 

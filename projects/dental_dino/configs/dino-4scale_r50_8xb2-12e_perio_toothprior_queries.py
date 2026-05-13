@@ -11,3 +11,17 @@ model = dict(
     queries_per_tooth=2,
     num_tooth_slots=32,
 )
+
+backend_args = None
+train_pipeline = [
+    dict(type='LoadImageFromFile', backend_args=backend_args),
+    dict(type='LoadAnnotations', with_bbox=True, with_seg=True),
+    dict(type='RandomFlip', prob=0.5, direction='horizontal'),
+    dict(type='Resize', scale=(1333, 800), keep_ratio=True),
+    dict(type='PackDetInputs')]
+
+train_dataloader = dict(
+    dataset=dict(
+        pipeline=train_pipeline,
+    )
+)

@@ -36,3 +36,17 @@ val_evaluator = dict(
     ann_file=data_root + 'annotations/instances_val2017.json',
 )
 test_evaluator = val_evaluator
+
+optim_wrapper = dict(
+    optimizer=dict(
+        type='AdamW',
+        lr=2e-4,
+        weight_decay=1e-4,
+    ),
+    clip_grad=dict(max_norm=0.1, norm_type=2),
+    paramwise_cfg=dict(custom_keys={'backbone': dict(lr_mult=0.1)})
+)
+
+auto_scale_lr = dict(enable=False, base_batch_size=2)
+
+
