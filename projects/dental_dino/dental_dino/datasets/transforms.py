@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import mmcv
 from mmcv.transforms import BaseTransform
 
 from mmdet.registry import TRANSFORMS
@@ -34,4 +35,44 @@ class ConcatSemSegToImage(BaseTransform):
         mask = (seg > 0).astype(np.uint8) * 255
         results['img'] = np.ascontiguousarray(
             np.concatenate([img, mask[:, :, np.newaxis]], axis=-1))
+        return results
+
+@TRANSFORMS.register_module()
+class CLAHE(BaseTransform):
+    """Apply CLAHE to image.
+
+    Works for:
+    - HxW grayscale
+    - HxWx3 pseudo-color image copied from grayscale
+    - generic uint8 multi-channel images
+    """
+
+    def __init__(self, clip_limit=2.0, tile_grid_size=(8, 8)):
+        self.clip_limit = clip_limit
+        self.tile_grid_size = tile_grid_size
+
+    def transform(self, results: dict) -> dict:
+        img = results['img']
+
+        if img.dtype != np.uint8:
+            img = np.clip(img, 0, 255).astype(np.uint8)
+
+        if img.ndim == 2:
+            img = mmcv.clahe(img, self.clip_limit, self.tile_grid_size)
+
+        elif img.ndim == 3 and img.shape[2] == 3:
+            # 对“灰度复制成3通道”的情况，直接只处理一个通道再复制回去
+            ch = mmcv.clahe(img[:, :, 0], self.clip_limit, self.tile_grid_size)
+            img = np.stack([ch, ch, ch], axis=-1)
+
+        else:
+            # 兜底：逐通道处理
+            out = []
+            for i in range(img.shape[2]):
+                out.append(
+                    mmcv.clahe(img[:, :, i], self.clip_limit, self.tile_grid_size)
+                )
+            img = np.stack(out, axis=-1)
+
+        results['img'] = np.ascontiguousarray(img)
         return results
